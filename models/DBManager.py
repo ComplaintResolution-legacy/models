@@ -7,7 +7,7 @@ vcap_services = json.loads(os.environ.get('VCAP_SERVICES'))
 class DBManager:
 
     _server_url = vcap_services['cloudantNoSQLDB']['credentials']['url']
-    _database_name = "test"
+    _database_name = "complaint_resolution"
     _db = None
     _server = None
 
