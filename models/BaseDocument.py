@@ -18,3 +18,9 @@ class BaseDocument(Document):
 
     def save(self):
         self.store(DBManager.db())
+
+    @classmethod
+    def get(cls, id):
+        return cls.load(DBManager.db(), id)
+    
+

@@ -2,7 +2,7 @@ from couchdb.mapping import TextField, ListField, DateTimeField, BooleanField
 from .BaseDocument import BaseDocument
 from .DBManager import DBManager
 
-import time
+import datetime
 import uuid
 
 class Complaint(BaseDocument):
@@ -19,6 +19,7 @@ class Complaint(BaseDocument):
     def set_status(self, status):
         if(status in self.ALL_STATUS):
             self.status = status
+            self.save()
         else:
             raise ValueError("Status value can be waiting, resolved or rejected")
 
@@ -31,6 +32,16 @@ class Complaint(BaseDocument):
         DBManager.db()
         departments = [Department.load(db, i) for i in self.department_ids]
         return departments
+
+    @classmethod
+    def get_by_timestamp(cls, skip, limit):
+        db = DBManager.db()
+        complaints = []
+        rows = db.view('views/complaintByTimestamp',limit=limit, skip=skip, include_docs=True)
+        for row in rows:
+            complaints.append(cls.load(db, row.doc.id))
+        return complaints
+
 
 class Complainant(BaseDocument):
     account_type = TextField()
@@ -106,10 +117,12 @@ class PasswordRecovery(BaseDocument):
             supervisor = self.get_supervisor()
             db = DBManager.db()
             supervisor.password = new_password
-            supervisor.has_password_recovery = False
+            supervisor.password_recovery_id = None
             supervisor.store(db)
-        self.used = True
-        self.store()
+            self.used = True
+            self.save()
+            return True
+        return False
 
 class Supervisor(BaseDocument):
     email = TextField()
@@ -117,7 +130,6 @@ class Supervisor(BaseDocument):
     name = TextField()
     designation = TextField()
     department_ids = ListField(TextField())
-    has_password_recovery = BooleanField()
     password_recovery_id = TextField()
 
     @classmethod
@@ -128,14 +140,14 @@ class Supervisor(BaseDocument):
             return cls.load(db, row.doc.id)
         return None
 
-    def authenticate(cls, password):
+    def authenticate(self, password):
         if self.password == password:
             return True
         return False
 
-    def get_password_recovery(cls):
+    def get_password_recovery(self):
         db = DBManager.db()
-        if(self.has_password_recovery == True):
+        if(self.password_recovery_id is not None):
             return PasswordRecovery.load(
                 db,
                 self.password_recovery_id
@@ -143,10 +155,10 @@ class Supervisor(BaseDocument):
 
         return None
 
-    def create_password_recovery(cls):
+    def create_password_recovery(self):
         db = DBManager.db()
-        timestamp = time.time()
-        token = str(uuid.uuid4().get_hex().upper()[0:6])
+        timestamp = datetime.datetime.now()
+        token = str(uuid.uuid4().hex.upper()[0:6])
         pr = PasswordRecovery(
             supervisor_id=self.id,
             token=token,
@@ -154,7 +166,7 @@ class Supervisor(BaseDocument):
             used=False
         )
         pr.store(db)
-        self.has_password_recovery = True
         self.password_recovery_id = pr.id
         self.store(db)
+        return pr
         # Send Email Notification
