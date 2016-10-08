@@ -1,4 +1,10 @@
-from couchdb.mapping import TextField, ListField, DateTimeField, BooleanField
+from couchdb.mapping import(
+    TextField,
+    ListField,
+    DateTimeField,
+    BooleanField
+)
+
 from .BaseDocument import BaseDocument
 from .DBManager import DBManager
 
@@ -21,7 +27,9 @@ class Complaint(BaseDocument):
             self.status = status
             self.save()
         else:
-            raise ValueError("Status value can be waiting, resolved or rejected")
+            raise ValueError(
+                "Status value can be waiting, resolved or rejected"
+            )
 
     def get_complainant(self):
         db = DBManager.db()
@@ -37,7 +45,13 @@ class Complaint(BaseDocument):
     def get_by_timestamp(cls, skip, limit):
         db = DBManager.db()
         complaints = []
-        rows = db.view('views/complaintByTimestamp',limit=limit, skip=skip, include_docs=True)
+        rows = db.view(
+            'views/complaintByTimestamp',
+            limit=limit,
+            skip=skip,
+            descending=True,
+            include_docs=True
+        )
         for row in rows:
             complaints.append(cls.load(db, row.doc.id))
         return complaints
@@ -56,7 +70,11 @@ class Complainant(BaseDocument):
     @classmethod
     def search_complainant(cls,account_handle, account_type):
         db = DBManager.db()
-        c = db.view('views/complainantByHandle', key=account_handle, include_docs=True)
+        c = db.view(
+            'views/complainantByHandle',
+            key=account_handle,
+            include_docs=True
+        )
         for row in c:
             if row.doc['account_type'] == account_type:
                 return cls.load(db, row.doc.id)
@@ -64,7 +82,10 @@ class Complainant(BaseDocument):
 
     @classmethod
     def get_or_create_complainant(cls, account_handle, account_type):
-        complainant = cls.search_complainant(account_handle, account_type)
+        complainant = cls.search_complainant(
+            account_handle,
+            account_type
+        )
         if(complainant is None):
             complainant = cls(
                 account_handle=account_handle,
@@ -135,7 +156,11 @@ class Supervisor(BaseDocument):
     @classmethod
     def search_supervisor(cls, email):
         db = DBManager.db()
-        s = db.view('views/supervisorByEmail', key=email, include_docs=True)
+        s = db.view(
+            'views/supervisorByEmail',
+            key=email,
+            include_docs=True
+        )
         for row in s:
             return cls.load(db, row.doc.id)
         return None
