@@ -13,11 +13,13 @@ import uuid
 
 class Complaint(BaseDocument):
     ALL_STATUS = ["waiting","resolved", "rejected"]
+    post_id = TextField()
     text = TextField()
     timestamp = DateTimeField()
     status = TextField()
     complainant_id = TextField()
     department_ids = ListField(TextField())
+    comment_ids = ListField(TextField())
 
     def get_status(self):
         return self.status
@@ -35,6 +37,11 @@ class Complaint(BaseDocument):
         db = DBManager.db()
         complainant = Complainant.load(db, self.complainant_id)
         return complainant
+
+    def get_comments(self):
+        db = DBManager.db()
+        comments = [Comment.load(db, i) for i in self.comment_ids]
+        return comments
 
     def get_departments(self):
         DBManager.db()
@@ -195,3 +202,32 @@ class Supervisor(BaseDocument):
         self.store(db)
         return pr
         # Send Email Notification
+
+class Comment(BaseDocument):
+    text = TextField()
+    timestamp = DateTimeField()
+    post_id = TextField()
+    complaint_id = TextField()
+    prev_comment_id = TextField()
+
+    def get_complaint(self):
+        db = DBManager.db()
+        complaint = Complaint.load(db, self.complaint_id)
+        return complaint
+
+    def get_prev_comment(self):
+        db = DBManager.db()
+        if(self.prev_comment_id == None):
+            return None
+        return self.load(db, self.prev_comment_id)
+
+    @classmethod
+    def create_comment(cls, complaint, *args, **kwargs):
+        comment = cls(
+            *args,
+            complaint_id=complaint.id,
+            **kwargs
+        )
+        comment.save()
+        complaint.comment_ids.push(comment.id)
+        complaint.save()
