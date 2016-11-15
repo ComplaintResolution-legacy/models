@@ -13,13 +13,13 @@ import uuid
 
 class Complaint(BaseDocument):
     ALL_STATUS = ["waiting","resolved", "rejected"]
-    post_id = TextField()
     text = TextField()
     timestamp = DateTimeField()
     status = TextField()
     complainant_id = TextField()
     department_ids = ListField(TextField())
     comment_ids = ListField(TextField())
+    latest_comment_id = TextField()
 
     def get_status(self):
         return self.status
@@ -43,25 +43,61 @@ class Complaint(BaseDocument):
         comments = [Comment.load(db, i) for i in self.comment_ids]
         return comments
 
+    def get_latest_comment(self):
+        if(self.latest_comment_id is None):
+            return None
+        db = DBManager.db()
+        comment = Comment.load(db, self.latest_comment_id)
+        return comment
+
     def get_departments(self):
         DBManager.db()
         departments = [Department.load(db, i) for i in self.department_ids]
         return departments
 
     @classmethod
-    def get_by_timestamp(cls, skip, limit):
+    def get_by_timestamp(cls, skip, limit, status=None):
         db = DBManager.db()
         complaints = []
-        rows = db.view(
-            'views/complaintByTimestamp',
-            limit=limit,
-            skip=skip,
-            descending=True,
-            include_docs=True
-        )
+        rows = None
+        if(status is None):
+            rows = db.view(
+                'views/complaintByTimestamp',
+                limit=limit,
+                skip=skip,
+                descending=True,
+                include_docs=True
+            )
+        elif(status == "waiting"):
+            rows = db.view(
+                'views/waitingComplaintByTimestamp',
+                limit=limit,
+                skip=skip,
+                descending=True,
+                include_docs=True
+            )
+        elif(status == "resolved"):
+            rows = db.view(
+                'views/resolvedComplaintByTimestamp',
+                limit=limit,
+                skip=skip,
+                descending=True,
+                include_docs=True
+            )
+        elif(status == "rejected"):
+            rows = db.view(
+                'views/rejectedComplaintByTimestamp',
+                limit=limit,
+                skip=skip,
+                descending=True,
+                include_docs=True
+            )
+            
         for row in rows:
             complaints.append(cls.load(db, row.doc.id))
         return complaints
+
+
 
 
 class Complainant(BaseDocument):
@@ -206,9 +242,9 @@ class Supervisor(BaseDocument):
 class Comment(BaseDocument):
     text = TextField()
     timestamp = DateTimeField()
-    post_id = TextField()
     complaint_id = TextField()
     prev_comment_id = TextField()
+    by = TextField()
 
     def get_complaint(self):
         db = DBManager.db()
@@ -222,12 +258,15 @@ class Comment(BaseDocument):
         return self.load(db, self.prev_comment_id)
 
     @classmethod
-    def create_comment(cls, complaint, *args, **kwargs):
+    def create_comment(cls, complaint, prev_comment, *args, **kwargs):
+        prev_comment_id = None if prev_comment is None else prev_comment.id
         comment = cls(
             *args,
+            prev_comment_id=prev_comment_id,
             complaint_id=complaint.id,
             **kwargs
         )
         comment.save()
-        complaint.comment_ids.push(comment.id)
+        complaint.comment_ids.append(comment.id)
         complaint.save()
+        return comment

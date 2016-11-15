@@ -19,6 +19,11 @@ class BaseDocument(Document):
     def save(self):
         self.store(DBManager.db())
 
+    def delete(self):
+        db = DBManager.db()
+        t_doc = db[self.id]
+        db.delete(t_doc)
+
     @classmethod
     def get(cls, id):
         return cls.load(DBManager.db(), id)

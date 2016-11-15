@@ -3,7 +3,8 @@ from .models import (
     Complainant,
     Department,
     PasswordRecovery,
-    Supervisor
+    Supervisor,
+    Comment
 )
 
 __all__ = [
@@ -11,5 +12,6 @@ __all__ = [
     Complainant,
     Department,
     PasswordRecovery,
-    Supervisor
+    Supervisor,
+    Comment
 ]
